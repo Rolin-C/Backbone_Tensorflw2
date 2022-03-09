@@ -8,7 +8,7 @@ import math
 # define MB_block
 def MBConv_block(inputs, kernel_size, input_channel, output_channel, expand_rate, strides, drop_rate, block_id, use_SE):
 
-    # 起名字
+    # prename
     prename = "MB_" + block_id
 
     # expand input dimension
@@ -40,7 +40,7 @@ def MBConv_block(inputs, kernel_size, input_channel, output_channel, expand_rate
     return x
 
 
-# define expanding of filters, make sure that filters can 被 8 整除
+# define expanding of filters, make sure that filters can be divided by 8.
 def round_filters(width_coefficient, filters, divisor=8):
     filters = width_coefficient * filters
     new_filters = max(divisor, int(filters + divisor / 2) // divisor * divisor)
@@ -53,7 +53,7 @@ def round_filters(width_coefficient, filters, divisor=8):
 def round_repeats(depth_coefficient, repeats):
     return int(math.ceil(depth_coefficient * repeats))
 
-#                                                                    在最后的连接层   MB模块中的 drop
+#                                                                   in the last fc layer  drop in MB module
 def Efficient_net(width_coefficient, input_shape, depth_coefficient, dropout_rate=0.2, MB_drop_rate=0.2, last_layers=False, num_classes=1000):
 
     # B0's architecture
@@ -82,14 +82,14 @@ def Efficient_net(width_coefficient, input_shape, depth_coefficient, dropout_rat
     num_blocks = float(sum(i[1] for i in block_args))
 
     # MB_blocks
-    # 重复 stage1, stage2, stage3...
+    # repeat stage1, stage2, stage3...
     for i, args in enumerate(block_args):
 
-        # input_filters and output_filters 都随着 width_coefficient 而改变
+        # input_filters and output_filters change when width_coefficient change
         args[2] = round_filters(width_coefficient, args[2])
         args[3] = round_filters(width_coefficient, args[3])
 
-        # 重复 MB_block 1次，2次，3次..
+        # repeat MB_block 1, 2, 3..
         for j in range(round_repeats(depth_coefficient, args[1])):
             x = MBConv_block(x,
                              kernel_size=args[0],
