@@ -9,7 +9,7 @@ from SEmodule import SE_module
 
 def MBConv_block(inputs, expand_rate, kernel_size, strides, input_channel, output_channel, dropout_rate, block_id):
 
-    # 起名字
+    # prename
     prename = "MB_" + str(block_id)
 
     # expand input dimension
