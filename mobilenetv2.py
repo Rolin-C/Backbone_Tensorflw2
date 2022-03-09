@@ -1,4 +1,6 @@
-
+#----------------------------------------------------#
+# make sure the filters can be divided by 8
+#----------------------------------------------------#
 
 def _make_divisible(v, divisor, min_value=None):
     if min_value is None:
