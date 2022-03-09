@@ -4,14 +4,19 @@ from tensorflow.keras import Model
 from SEmodule import SE_module
 import math
 
-
+#--------------------#
 # define MB_block
+#--------------------#
+
 def MBConv_block(inputs, kernel_size, input_channel, output_channel, expand_rate, strides, drop_rate, block_id, use_SE):
 
     # prename
     prename = "MB_" + block_id
-
+    
+    #--------------------------#
     # expand input dimension
+    #--------------------------#
+    
     if expand_rate != 1:
         x = Conv2D(filters=expand_rate * input_channel, kernel_size=(1, 1), padding='same', use_bias=False, name=prename + "expand_conv")(inputs)
         x = BatchNormalization(name=prename + "expand_bn")(x)
@@ -19,16 +24,18 @@ def MBConv_block(inputs, kernel_size, input_channel, output_channel, expand_rate
     else:
         x = inputs
 
-    # Deothwise Conv2D
+    #--------------------#
+    # Depthwise Conv2D
+    #--------------------#
+    
     x = DepthwiseConv2D(kernel_size=kernel_size, strides=strides, padding='same', use_bias=False, name=prename + "Depthwise_conv")(x)
     x = BatchNormalization(name=prename + "Depthwise_bn")(x)
     x = Activation('swish', name=prename + "Depthwise_activation")(x)
-
-    # SE module
-    if use_SE:
-        x = SE_module(x, block_id)
-
+    
+    #--------------------#
     # output dimension
+    #--------------------#
+    
     x = Conv2D(filters=output_channel, kernel_size=(1, 1), padding='same', use_bias=False, name=prename + "project_conv")(x)
     x = BatchNormalization(name=prename + "project_bn")(x)
 
@@ -39,8 +46,10 @@ def MBConv_block(inputs, kernel_size, input_channel, output_channel, expand_rate
 
     return x
 
-
+#-------------------------------------------------------------------------#
 # define expanding of filters, make sure that filters can be divided by 8.
+#-------------------------------------------------------------------------#
+
 def round_filters(width_coefficient, filters, divisor=8):
     filters = width_coefficient * filters
     new_filters = max(divisor, int(filters + divisor / 2) // divisor * divisor)
@@ -48,16 +57,21 @@ def round_filters(width_coefficient, filters, divisor=8):
         new_filters = new_filters + divisor
     return int(new_filters)
 
-
+#------------------------------------#
 # define expanding of block repeats
+#------------------------------------#
+
 def round_repeats(depth_coefficient, repeats):
     return int(math.ceil(depth_coefficient * repeats))
 
-#                                                                   in the last fc layer  drop in MB module
+# ------------------------------------------------------------------in the last fc layer  drop in MB module
 def Efficient_net(width_coefficient, input_shape, depth_coefficient, dropout_rate=0.2, MB_drop_rate=0.2, last_layers=False, num_classes=1000):
 
+    #------------------------------------------------------------------------#
     # B0's architecture
     # kernel, block_repeat, input_filter, output_filter, expand_time, stride
+    #------------------------------------------------------------------------#
+    
     block_args = [[3, 1, 32, 16, 1, 1, True],
                   [3, 2, 16, 24, 6, 2, True],
                   [5, 2, 24, 40, 6, 2, True],
@@ -67,13 +81,17 @@ def Efficient_net(width_coefficient, input_shape, depth_coefficient, dropout_rat
                   [3, 1, 192, 320, 6, 1, True]]
 
     img_input = layers.Input(shape=input_shape)
-
+    #---------------------#
     # data preprocessing
+    #---------------------#
+    
     x = layers.experimental.preprocessing.Rescaling(1. / 255.)(img_input)
     x = layers.experimental.preprocessing.Normalization()(x)
 
-
+    #---------------------#
     # first Conv2D
+    #---------------------#
+    
     x = Conv2D(filters=32, kernel_size=3, strides=2, use_bias=False, name="first_conv")(x)
     x = BatchNormalization(name="first_bn")(x)
     x = Activation('swish', name="first_activation")(x)
@@ -81,8 +99,11 @@ def Efficient_net(width_coefficient, input_shape, depth_coefficient, dropout_rat
     b = 0
     num_blocks = float(sum(i[1] for i in block_args))
 
+    #----------------------------------#
     # MB_blocks
     # repeat stage1, stage2, stage3...
+    #----------------------------------#
+    
     for i, args in enumerate(block_args):
 
         # input_filters and output_filters change when width_coefficient change
@@ -116,57 +137,79 @@ def Efficient_net(width_coefficient, input_shape, depth_coefficient, dropout_rat
     model = Model(img_input, x, name="efficientNet")
     return model
 
-
+#---------------------#
 # Efficient_net_B0
+#---------------------#
+
 def efficient_net_B0(input_shape=(224, 224, 3)):
     return Efficient_net(width_coefficient=1,
                          depth_coefficient=1,
                          input_shape=input_shape,
                          dropout_rate=0.2)
 
+#---------------------#
 # Efficient_net_B1
+#---------------------#
+
 def efficient_net_B1(input_shape=(240, 240, 3)):
     return Efficient_net(width_coefficient=1,
                          depth_coefficient=1.1,
                          input_shape=input_shape,
                          dropout_rate=0.2)
 
+#---------------------#
 # Efficient_net_B2
+#---------------------#
+
 def efficient_net_B2(input_shape=(260, 260, 3)):
     return Efficient_net(width_coefficient=1.1,
                          depth_coefficient=1.2,
                          input_shape=input_shape,
                          dropout_rate=0.3)
 
+#---------------------#
 # Efficient_net_B3
+#---------------------#
+
 def efficient_net_B3(input_shape=(300, 300, 3)):
     return Efficient_net(width_coefficient=1.2,
                          depth_coefficient=1.4,
                          input_shape=input_shape,
                          dropout_rate=0.3)
 
+#---------------------#
 # Efficient_net_B4
+#---------------------#
+
 def efficient_net_B4(input_shape=(380, 380, 3)):
     return Efficient_net(width_coefficient=1.4,
                          depth_coefficient=1.8,
                          input_shape=input_shape,
                          dropout_rate=0.4)
 
+#---------------------#
 # Efficient_net_B5
+#---------------------#
+
 def efficient_net_B5(input_shape=(456, 456, 3)):
     return Efficient_net(width_coefficient=1.6,
                          depth_coefficient=2.2,
                          input_shape=input_shape,
                          dropout_rate=0.4)
 
+#---------------------#
 # Efficient_net_B6
+#---------------------#
+
 def efficient_net_B6(input_shape=(528, 528, 3)):
     return Efficient_net(width_coefficient=1.8,
                          depth_coefficient=2.6,
                          input_shape=input_shape,
                          dropout_rate=0.5)
-
+#---------------------#
 # Efficient_net_B7
+#---------------------#
+
 def efficient_net_B7(input_shape=(600, 600, 3)):
     return Efficient_net(width_coefficient=2.0,
                          depth_coefficient=3.1,
