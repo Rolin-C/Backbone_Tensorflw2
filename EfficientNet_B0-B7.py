@@ -4,7 +4,7 @@ from keras.layers import (Activation, Add, BatchNormalization, ZeroPadding2D, Co
 from SEmodule import SE_module
 
 # def swish(x):
-#     x = x * sigmoid(x)
+#     x = x * sigmoid(x）
 #     return x
 
 def MBConv_block(inputs, expand_rate, kernel_size, strides, input_channel, output_channel, dropout_rate, block_id):
