@@ -1,9 +1,3 @@
-# mobilenetv2 的网络结构，train 要用到
-
-from nets.attention_module import *   # import 注意力模块
-from config_file import get_config
-
-config = get_config()
 
 
 def _make_divisible(v, divisor, min_value=None):
@@ -14,8 +8,10 @@ def _make_divisible(v, divisor, min_value=None):
         new_v += divisor
     return new_v
 
+#----------------------------------------------------#
+# define Bottleneck
+#----------------------------------------------------#
 
-# 定义 bottleneck 模块
 def Bottleneck_module(inputs, expansion, in_size, out_size, alpha, stride, block_id, skip_connection, attention=config.attention, attention_id=0, rate=1):
     pointwise_conv_filters = int(out_size * alpha)
     pointwise_filters = _make_divisible(pointwise_conv_filters, 8)
@@ -24,7 +20,7 @@ def Bottleneck_module(inputs, expansion, in_size, out_size, alpha, stride, block
     prefix = 'Bottle{}_'.format(block_id)
 
     #----------------------------------------------------#
-    #   利用1x1卷积根据输入进来的通道数进行通道数上升
+    #   Expand Conv2D
     #----------------------------------------------------#
     if block_id:
         x = Conv2D(expansion * in_size, kernel_size=1, padding='same', use_bias=False, activation=None, name=prefix + 'expand')(x)
@@ -34,33 +30,28 @@ def Bottleneck_module(inputs, expansion, in_size, out_size, alpha, stride, block
         prefix = 'Bottle_'
 
     #----------------------------------------------------#
-    #   利用深度可分离卷积进行特征提取, dilation 空洞卷积
+    #   Depthwise Conv2D, dilation Conv2D
     #----------------------------------------------------#
     x = DepthwiseConv2D(kernel_size=3, strides=stride, activation=None, use_bias=False, padding='same', dilation_rate=(rate, rate), name=prefix + 'depthwise')(x)
     x = BatchNormalization(epsilon=1e-3, momentum=0.999, name=prefix + 'depthwise_BN')(x)
     x = Activation('relu', name=prefix + 'depthwise_relu')(x)
 
-    if attention == 'SE_module':
-        x = SE_module(x, attention_id)
-    elif attention == 'ECA_module':
-        x = ECA_module(x, attention_id)
-    elif attention == 'CBAM_module':
-        x =CBAM_module(x, attention_id)
-    elif attention == '':
-        x = x
-
     #----------------------------------------------------#
-    #   利用1x1的卷积进行通道数的下降
+    #   project layers to output filters
     #----------------------------------------------------#
     x = Conv2D(pointwise_filters, kernel_size=1, padding='same', use_bias=False, activation=None, name=prefix + 'narrow')(x)
     x = BatchNormalization(epsilon=1e-3, momentum=0.999, name=prefix + 'narrow_BN')(x)
 
     #----------------------------------------------------#
-    #   添加残差边
+    #   residual connection
     #----------------------------------------------------#
     if skip_connection:
         return Add(name=prefix + 'add')([inputs, x])
     return x
+
+#----------------------------------------------------#
+# MobileNetv2 architecture
+#----------------------------------------------------#
 
 def get_mobilenetv2_encoder(inputs_size, downsample_factor=8):
     if downsample_factor == 16:
@@ -108,14 +99,15 @@ def get_mobilenetv2_encoder(inputs_size, downsample_factor=8):
     x = Bottleneck_module(x, expansion=6, in_size=64, out_size=96, alpha=alpha, stride=1, block_id=10, skip_connection=False, attention=config.attention, attention_id=11, rate=block4_dilation)   # block4_dilation 空洞卷积 比例 2
     x = Bottleneck_module(x, expansion=6, in_size=96, out_size=96, alpha=alpha, stride=1, block_id=11, skip_connection=True, attention=config.attention, attention_id=12, rate=block4_dilation)     # block4_dilation 空洞卷积 比例 2
     x = Bottleneck_module(x, expansion=6, in_size=96, out_size=96, alpha=alpha, stride=1, block_id=12, skip_connection=True, attention=config.attention, attention_id=13, rate=block4_dilation)     # block4_dilation 空洞卷积 比例 2
-    # 辅助分支训练
+    
     f4 = x
 
-    #---------------------------------------------------------------#
     # 30,30.96 -> 30,30,160 -> 30,30,320
     x = Bottleneck_module(x, expansion=6, in_size=96, out_size=160, alpha=alpha, stride=1, block_id=13, skip_connection=False, attention=config.attention, attention_id=14, rate=block4_dilation)  # block4_dilation 空洞卷积 比例 2
     x = Bottleneck_module(x, expansion=6, in_size=160, out_size=160, alpha=alpha, stride=1, block_id=14, skip_connection=True, attention=config.attention, attention_id=15, rate=block5_dilation)   # block4_dilation 空洞卷积 比例 4
     x = Bottleneck_module(x, expansion=6, in_size=160, out_size=160, alpha=alpha, stride=1, block_id=15, skip_connection=True, attention=config.attention, attention_id=16, rate=block5_dilation)   # block4_dilation 空洞卷积 比例 4
     x = Bottleneck_module(x, expansion=6, in_size=160, out_size=320, alpha=alpha, stride=1, block_id=16, skip_connection=False, attention=config.attention, attention_id=17, rate=block5_dilation) # block4_dilation 空洞卷积 比例 4
+    
     f5 = x
+    
     return inputs, f4, f5
