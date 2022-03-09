@@ -1,16 +1,9 @@
-#-------------------------------------------------------------#
-#   ResNet50的网络部分
-#-------------------------------------------------------------#
+
 from __future__ import print_function
 from tensorflow.keras import layers
-from tensorflow.keras.layers import (Activation, BatchNormalization, Conv2D,
-                                     Input, MaxPooling2D, ZeroPadding2D)
-from nets.attention_module import (SE_module, ECA_module, CBAM_module, EPSA_module)   # import 注意力模块
-from config_file import get_config
+from tensorflow.keras.layers import *
 
-config = get_config()
-
-# 第一种 residual 模块
+# Residual 1
 def BTNK_1(input_tensor, kernel_size, filters, stage, block, strides=(2, 2), dilation_rate=1, attention=config.attention, attention_id=0):
 
     filters1, filters2, out_size = filters
@@ -21,30 +14,12 @@ def BTNK_1(input_tensor, kernel_size, filters, stage, block, strides=(2, 2), dil
     x = BatchNormalization(name=prename + 'BTNK1_' + block + '_block1' + '_BN')(x)
     x = Activation('relu', name=prename + 'BTNK1_' + block + '_block1' + '_relu')(x)
 
-    # if attention == 'EPSA_module':
-    #     x = EPSA_module(x, filters2, stage, block, attention_id)
-    # elif attention == 'SE_module':
-    #     x = SE_module(x, attention_id)
-    # elif attention == 'ECA_module':
-    #     x = ECA_module(x, attention_id)
-    # elif attention == 'CBAM_module':
-    #     x =CBAM_module(x, attention_id)
-
     x = Conv2D(filters2, kernel_size, padding='same', dilation_rate=dilation_rate, name=prename + 'BTNK1_' + block + '_block2' + '_Conv_3', use_bias=False)(x)
     x = BatchNormalization(name=prename + 'BTNK1_' + block + '_block2' + '_BN')(x)
     x = Activation('relu', name=prename + 'BTNK1_' + block + '_block2' + '_relu')(x)
 
     x = Conv2D(out_size, (1, 1), name=prename + 'BTNK1_' + block + '_block3' + '_Conv_1', use_bias=False)(x)
     x = BatchNormalization(name=prename + 'BTNK1_' + block + '_block3' + '_BN')(x)
-
-    if attention == 'EPSA_module':
-        x = EPSA_module(x, filters2, stage, block, attention_id)
-    if attention == 'SE_module':
-        x = SE_module(x, attention_id)
-    elif attention == 'ECA_module':
-        x = ECA_module(x, attention_id)
-    elif attention == 'CBAM_module':
-        x =CBAM_module(x, attention_id)
 
     shortcut = Conv2D(out_size, (1, 1), strides=strides, name=prename + 'BTNK1_' + block + '_resblock' + '_Conv_1', use_bias=False)(input_tensor)
     shortcut = BatchNormalization(name=prename + 'BTNK1_' + block + '_resblock' + '_BN')(shortcut)
@@ -53,7 +28,7 @@ def BTNK_1(input_tensor, kernel_size, filters, stage, block, strides=(2, 2), dil
     x = Activation('relu', name=prename + 'BTNK1_' + block + '_Relu')(x)
     return x
 
-# 第二种 residual 模块
+# Residual 2
 def BTNK_2(input_tensor, kernel_size, filters, stage, block, dilation_rate=1, attention=config.attention, attention_id=0):
 
     prename = 'stage{}_'.format(stage)
@@ -64,15 +39,6 @@ def BTNK_2(input_tensor, kernel_size, filters, stage, block, dilation_rate=1, at
     x = BatchNormalization(name=prename + 'BTNK2_' + block + '_block1' + '_BN')(x)
     x = Activation('relu', name=prename + 'BTNK2_' + block + '_block1' + '_relu')(x)
 
-    # if attention == 'EPSA_module':
-    #     x = EPSA_module(x, filters2, stage, block, attention_id)
-    # elif attention == 'SE_module':
-    #     x = SE_module(x, attention_id)
-    # elif attention == 'ECA_module':
-    #     x = ECA_module(x, attention_id)
-    # elif attention == 'CBAM_module':
-    #     x = CBAM_module(x, attention_id)
-
     x = Conv2D(filters2, kernel_size, padding='same', dilation_rate=dilation_rate, name=prename + 'BTNK2_' + block + '_block2' + '_Conv_3', use_bias=False)(x)
     x = BatchNormalization(name=prename + 'BTNK2_' + block + '_block2' + '_BN')(x)
     x = Activation('relu', name=prename + 'BTNK2_' + block + '_block2' + '_relu')(x)
@@ -80,22 +46,14 @@ def BTNK_2(input_tensor, kernel_size, filters, stage, block, dilation_rate=1, at
     x = Conv2D(out_size, (1, 1), name=prename + 'BTNK2_' + block + '_block3' + '_Conv_1', use_bias=False)(x)
     x = BatchNormalization(name=prename + 'BTNK2_' + block + '_block3' + '_BN')(x)
 
-    if attention == 'EPSA_module':
-        x = EPSA_module(x, filters2, stage, block, attention_id)
-    if attention == 'SE_module':
-        x = SE_module(x, attention_id)
-    elif attention == 'ECA_module':
-        x = ECA_module(x, attention_id)
-    elif attention == 'CBAM_module':
-        x = CBAM_module(x, attention_id)
-
     x = layers.add([x, input_tensor])
     x = Activation('relu', name=prename + 'BTNK2_' + block + '_Relu')(x)
     return x
 
 
-# ResNet 结构
-def get_resnet50_encoder(inputs_size, downsample_factor=8):
+# ResNet50 Network
+
+def ResNet50(inputs_size, downsample_factor=8):
     if downsample_factor == 16:
         block4_dilation = 1
         block5_dilation = 2
