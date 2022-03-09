@@ -1,3 +1,7 @@
+from tensorflow.keras import layers
+from tensorflow.keras.layers import *
+
+
 #----------------------------------------------------#
 # make sure the filters can be divided by 8
 #----------------------------------------------------#
