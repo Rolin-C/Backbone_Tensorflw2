@@ -3,7 +3,9 @@ from __future__ import print_function
 from tensorflow.keras import layers
 from tensorflow.keras.layers import *
 
+#------------#
 # Residual 1
+#------------#
 def BTNK_1(input_tensor, kernel_size, filters, stage, block, strides=(2, 2), dilation_rate=1, attention=config.attention, attention_id=0):
 
     filters1, filters2, out_size = filters
@@ -28,7 +30,9 @@ def BTNK_1(input_tensor, kernel_size, filters, stage, block, strides=(2, 2), dil
     x = Activation('relu', name=prename + 'BTNK1_' + block + '_Relu')(x)
     return x
 
+#------------#
 # Residual 2
+#------------#
 def BTNK_2(input_tensor, kernel_size, filters, stage, block, dilation_rate=1, attention=config.attention, attention_id=0):
 
     prename = 'stage{}_'.format(stage)
@@ -50,9 +54,9 @@ def BTNK_2(input_tensor, kernel_size, filters, stage, block, dilation_rate=1, at
     x = Activation('relu', name=prename + 'BTNK2_' + block + '_Relu')(x)
     return x
 
-
+#-----------------#
 # ResNet50 Network
-
+#-----------------#
 def ResNet50(inputs_size, downsample_factor=8):
     if downsample_factor == 16:
         block4_dilation = 1
@@ -66,8 +70,10 @@ def ResNet50(inputs_size, downsample_factor=8):
         raise ValueError('Unsupported factor - `{}`, Use 8 or 16.'.format(downsample_factor))
     img_input = Input(shape=inputs_size)
 
+    #-----------------------------------#
     # Conv 7*7 64 2
     # 473 * 473 * 3 --> 237 * 237 * 128
+    #-----------------------------------#
     x = ZeroPadding2D(padding=(1, 1), name='conv1_pad')(img_input)
     x = Conv2D(filters=64, kernel_size=(3, 3), strides=(2, 2), name='conv1', use_bias=False)(x)
     x = BatchNormalization(axis=-1, name='bn_conv1')(x)
@@ -83,23 +89,31 @@ def ResNet50(inputs_size, downsample_factor=8):
     x = BatchNormalization(axis=-1, name='bn_conv3')(x)
     x = Activation(activation='relu')(x)
 
+    #-------------------------------------#
     # Maxpooling 3*3 2
     # 237 * 237 * 128 --> 119 * 119 * 128
+    #-------------------------------------#
     x = ZeroPadding2D(padding=(1, 1), name='pool1_pad')(x)
     x = MaxPooling2D((3, 3), strides=(2, 2))(x)
 
+    #-----------------------------------------------#
     # 119 * 119 * 128 --> 119 * 119 * 256   stride=1
+    #-----------------------------------------------#
     x = BTNK_1(x, 3, [64, 64, 256], stage=2, block='a', strides=(1, 1), attention=config.attention, attention_id=1)
     x = BTNK_2(x, 3, [64, 64, 256], stage=2, block='b', attention=config.attention, attention_id=2)
     x = BTNK_2(x, 3, [64, 64, 256], stage=2, block='c', attention=config.attention, attention_id=3)
 
+    #------------------------------------------------#
     # 119 * 119 * 256 --> 60 * 60 * 512     stride=2
+    #------------------------------------------------#
     x = BTNK_1(x, 3, [128, 128, 512], stage=3, block='a', attention=config.attention, attention_id=4)
     x = BTNK_2(x, 3, [128, 128, 512], stage=3, block='b', attention=config.attention, attention_id=5)
     x = BTNK_2(x, 3, [128, 128, 512], stage=3, block='c', attention=config.attention, attention_id=6)
     x = BTNK_2(x, 3, [128, 128, 512], stage=3, block='d', attention=config.attention, attention_id=7)
 
+    #------------------------------------------------#
     # 60 * 60 * 512 --> 30 * 30 * 1024     stride=2
+    #------------------------------------------------#
     x = BTNK_1(x, 3, [256, 256, 1024], stage=4, block='a', strides=(block4_stride,block4_stride), attention=config.attention, attention_id=8)
     x = BTNK_2(x, 3, [256, 256, 1024], stage=4, block='b', dilation_rate=block4_dilation, attention=config.attention, attention_id=9)
     x = BTNK_2(x, 3, [256, 256, 1024], stage=4, block='c', dilation_rate=block4_dilation, attention=config.attention, attention_id=10)
@@ -108,7 +122,9 @@ def ResNet50(inputs_size, downsample_factor=8):
     x = BTNK_2(x, 3, [256, 256, 1024], stage=4, block='f', dilation_rate=block4_dilation, attention=config.attention, attention_id=13)
     f4 = x
 
+    #------------------------------------------------#
     # 30 * 30 * 1024 --> 30 * 30 * 2048     stride=1
+    #------------------------------------------------#
     x = BTNK_1(x, 3, [512, 512, 2048], stage=5, block='a', strides=(1,1), dilation_rate=block4_dilation, attention=config.attention, attention_id=14)
     x = BTNK_2(x, 3, [512, 512, 2048], stage=5, block='b', dilation_rate=block5_dilation, attention=config.attention, attention_id=15)
     x = BTNK_2(x, 3, [512, 512, 2048], stage=5, block='c', dilation_rate=block5_dilation, attention=config.attention, attention_id=16)
